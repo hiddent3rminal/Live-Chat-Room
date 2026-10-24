@@ -1,5 +1,5 @@
 Flask>=3.0,<4.0
 Flask-SocketIO>=5.3,<6.0
-python-dotenv>=1.0,<2.0
+python-dotenv>=1.2.4,<2.0
 gunicorn>=22.0,<24.0
 simple-websocket>=1.0,<2.0
