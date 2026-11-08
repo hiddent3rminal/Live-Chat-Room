@@ -552,6 +552,22 @@ def register_routes(app: Flask) -> None:
                 (stored_name, session["user_id"]),
             )
             db.commit()
+
+            user_id=session["user_id"]
+
+            with presence_lock:
+                for entry in presence.values():
+                    if entry["user_id"] == str(user_id):
+                        entry["avatar_filename"]= stored_name
+            avatar_url=url_for("avatar_file", filename=stored_name)
+            socketio.emit(
+                "avatar_updated",
+                {
+                    "user_id" : user_id,
+                    "avatar_url" : avatar_url,
+                },
+            )
+            socketio.emit("presence", active_users_payload())
         except sqlite3.Error:
             file_path.unlink(missing_ok=True)
             db.rollback()
@@ -560,7 +576,7 @@ def register_routes(app: Flask) -> None:
         if old_user and old_user["avatar_filename"]:
             old_name=old_user["avatar_filename"]
 
-            if re.fullmatch(r"[0-9a-f]{32}\.{png|jpg|webp}",old_name):
+            if re.fullmatch(r"[0-9a-f]{32}\.{?:png|jpg|webp}",old_name):
                 (avatar_folder / old_name).unlink(missing_ok=True)
 
         return jsonify(
@@ -1061,7 +1077,14 @@ def register_routes(app: Flask) -> None:
 def active_users_payload(room_id: str | None = None) -> dict:
     with presence_lock:
         users = [
-            {"username": entry["username"], "room": entry.get("room", ""), "avatar_url":url_for("avatar_file", filename=entry["avatar_filename"]) if entry.get("avatar_filename") else url_for("static",filename="default-avatar.jpg"), }
+            {
+    "user_id": entry["user_id"],
+    "username": entry["username"],
+    "room": entry.get("room", ""),
+    "avatar_url": url_for("avatar_file", filename=entry["avatar_filename"])
+        if entry.get("avatar_filename")
+        else url_for("static", filename="default-avatar.jpg"),
+}
             for entry in presence.values()
             if room_id is None or entry.get("room") == room_id
         ]
@@ -1115,7 +1138,7 @@ def on_join(data):
         leave_room(f"room:{old_room}")
     join_room(f"room:{room_id}")
     history = db.execute(
-        """SELECT m.*, u.username FROM messages m JOIN users u ON u.id = m.sender_id
+        """SELECT m.*, u.username , u.avatar_filename FROM messages m JOIN users u ON u.id = m.sender_id
            WHERE m.room_id = ? AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 100""",
         (room_id,),
     ).fetchall()
@@ -1226,6 +1249,11 @@ def on_message(data):
             "id": cursor.lastrowid,
             "sender": user["username"],
             "sender_id": user["id"],
+            "avatar_url":(
+                url_for("avatar_file",filename=user["avatar_filename"])
+                if user["avatar_filename"]
+                else url_for("static",filename="default-avatar.jpg")
+            ),
             "recipient": recipient_name,
             "body": body,
             "created_at": utc_now(),
@@ -1263,7 +1291,7 @@ def on_message(data):
         )
     db.commit()
     row = db.execute(
-        "SELECT m.*, u.username FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ?",
+        "SELECT m.*, u.username, u.avatar_filename FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ?",
         (cursor.lastrowid,),
     ).fetchone()
     socketio.emit(

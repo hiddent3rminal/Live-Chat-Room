@@ -137,6 +137,22 @@
     }
 
     const header = node("div", "message-header");
+    const initial=message.sender.slice(0,1).toUpperCase();
+    const avatar=node("span", "user-avatar", initial)
+    avatar.dataset.userId=message.sender_id
+    if (message.avatar_url){
+      const img=document.createElement('img')
+      img.className="user-avatar"
+      img.src=message.avatar_url;
+      img.alt=`${message.sender}'s profile picture`;
+      img.dataset.userId=message.sender_id;
+      img.addEventListener("error",()=>{
+        img.replaceWith(avatar);
+      },{once:true})
+      header.append(img)
+    }else{
+      header.append(avatar)
+    }
     header.append(node("strong", "", message.sender));
     if (message.pinned) header.append(node("span", "pinned-badge", "Pinned"));
     const date = new Date(message.created_at);
@@ -405,15 +421,16 @@
       button.dataset.username = user.username;
       const initial=user.username.slice (0,1).toUpperCase();
       const avatar = node("span", "user-avatar", initial);
+      avatar.dataset.userId=user.user_id
       if (user.avatar_url){
         const img= document.createElement("img")
         img.className= "user-avatar"
         img.src=user.avatar_url;
         img.alt=`${user.username}'s profile picture`
+        img.dataset.userId=user.user_id
         img.addEventListener("error",()=>{
           img.replaceWith(avatar);
         }, {once:true})
-        avatar.replaceChildren();
         button.append(img)
       }else{
         button.append(avatar)
@@ -423,6 +440,24 @@
       return button;
     }));
   });
+
+  socket.on("avatar_updated", (data) => {
+    document.querySelectorAll(`[data-user-id="${data.user_id}"]`).forEach((element)=> {
+      if (element.tagName==="IMG"){
+        element.src=data.avatar_url
+      }else if(element.tagName ==="SPAN"){
+        const img=document.createElement("img")
+        img.className="user-avatar"
+        img.src=data.avatar_url
+        img.dataset.userId=data.user_id;
+        img.alt="User profile picture";
+        img.addEventListener("error",()=>{
+            img.replaceWith(element);
+        },{once:true})
+        element.replaceWith(img)
+      }
+    })
+  })
 
   socket.on("typing", (data) => {
     const indicator = document.getElementById("typing-indicator");
@@ -588,53 +623,56 @@
     document.getElementById("profile-dialog").showModal();
   });
 
-  const avatarinput=document.getElementById("profile-avatar-input");
-  const avatarpreview=document.getElementById("profile-avatar-preview");
-  avatarinput.addEventListener("change", async(event) =>{
-    const file=event.target.files[0];
-    if (!file ) return;
+let selectedAvatarFile = null;
+let avatarPreviewUrl = null;
 
-    if(!["image/png","image/jpeg","image/webp"].includes(file.type)){
-      showError("please Select an image.")
-      avatarinput.value="";
-      return;
+const avatarinput = document.getElementById("profile-avatar-input");
+const avatarpreview = document.getElementById("profile-avatar-preview");
+
+avatarinput.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+
+    if (!file) return;
+
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+        showError("Please select an image.");
+        avatarinput.value = "";
+        selectedAvatarFile = null;
+        return;
     }
-    if(file.size > 4* 1024 * 1024){
-      showError("The image must be 4MB or less");
-      avatarinput.value="";
-      return;
+
+    if (file.size > 4 * 1024 * 1024) {
+        showError("The image must be 4MB or less.");
+        avatarinput.value = "";
+        selectedAvatarFile = null;
+        return;
     }
 
+    selectedAvatarFile = file;
 
-    const imageUrl=URL.createObjectURL(file);
-    avatarpreview.src=imageUrl
-
-    try{
-      const avatarFile=avatarinput.files[0];
-      if (avatarFile){
-        const formData=new FormData();
-        formData.append("avatar",avatarFile)
-        const result= await api("/api/avatar",{
-            method:"POST",
-            body:formData
-        })
-
-        avatarpreview.src=avatarResult.avatar_url;
-
-        const headerAvatar=document.getElementById("header-avatar")
-        if(headerAvatar){
-          headerAvatar.src=result.avatar_url
-        }
-      }
-
-
-      avatarpreview.src=result.avatar_url;
-      URL.revokeObjectURL(imageUrl)
-    }catch(error){
-      showError(error.message)
-      URL.revokeObjectURL(imageUrl)
+    if (avatarPreviewUrl) {
+        URL.revokeObjectURL(avatarPreviewUrl);
     }
+
+    avatarPreviewUrl = URL.createObjectURL(file);
+    avatarpreview.src = avatarPreviewUrl;
+});
+
+
+function UpdateMyavatar(avatarurl){
+  const avatars=document.querySelectorAll(
+    '[data-user-id="'+ currentUserId + '"] .user-avatar'
+  )
+  avatars.forEach((avatar)=> {
+    avatar.src=avatarurl
   })
+
+  const headerAvatar=document.getElementById("header-avatar")
+  const profileAvatar=document.getElementById("profile-avatar-preview");
+  if (headerAvatar) headerAvatar.src=avatarurl;
+  if (profileAvatar) profileAvatar.src=avatarurl;
+}
+
 
 
 
@@ -698,34 +736,54 @@
       document.getElementById("invite-error").textContent = error.message;
     }
   });
-  document.getElementById("profile-save").addEventListener("click", async () => {
-    const profileErorr=document.getElementById("profile-error");
-    const avatarfile=avatarinput.files[0]
+document.getElementById("profile-save").addEventListener("click", async () => {
+    const profileError = document.getElementById("profile-error");
+
+    profileError.textContent = "";
+
     try {
-      if (avatarfile){
-        const formData=new FormData();
-        formData.append("avatar",avatarfile);
+        if (selectedAvatarFile) {
+            const formData = new FormData();
+            formData.append("avatar", selectedAvatarFile);
 
-        const avatarResult=await api("/api/avatar",{
-          method:"POST",
-          body:formData,
-        })
+            const avatarResult = await api("/api/avatar", {
+                method: "POST",
+                body: formData
+            });
 
-        avatarpreview.src=avatarResult.avatar_url
-      }
-      const result = await api("/api/profile", {
-        method: "POST",
-        body: JSON.stringify({ username: document.getElementById("profile-name").value.trim() }),
-      });
-      username = result.username;
-      usernameEl.textContent = username;
-      root.dataset.username = username;
-      document.getElementById("profile-dialog").close();
+            avatarpreview.src = avatarResult.avatar_url;
+            
+
+            document.querySelectorAll(".user-avatar").forEach((avatar)=>{
+              avatar.src=avatarResult.avatar_url;
+            })
+
+            selectedAvatarFile = null;
+            avatarinput.value = "";
+
+            if (avatarPreviewUrl) {
+                URL.revokeObjectURL(avatarPreviewUrl);
+                avatarPreviewUrl = null;
+            }
+        }
+
+        const result = await api("/api/profile", {
+            method: "POST",
+            body: JSON.stringify({
+                username: document.getElementById("profile-name").value.trim()
+            }),
+        });
+
+        username = result.username;
+        usernameEl.textContent = username;
+        root.dataset.username = username;
+
+        document.getElementById("profile-dialog").close();
+
     } catch (error) {
-      profileErorr.textContent=error.message
+        profileError.textContent = error.message;
     }
-  });
-
+});
   document.getElementById("search-toggle").addEventListener("click", () => {
     document.getElementById("search-panel").hidden = false;
     document.getElementById("search-query").focus();
