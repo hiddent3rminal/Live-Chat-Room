@@ -14,7 +14,7 @@
     <div class="header-content">
       <h1>Live Chat Room</h1>
       <div class="user-info">
-        <span id="username">{{ user.username }}</span>
+        <img  class="user-avatar" src="{% if user.avatar_filename %}{{ url_for('avatar_file', filename=user.avatar_filename) }}{% else %}{{ url_for('static', filename='default-avatar.jpg') }}{% endif %}" id="header-avatar3"><span id="username">{{ user.username }}</span>
         <button class="text-button" id="change-name" type="button">Edit profile</button>
         <form action="{{ url_for('logout') }}" method="post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -96,7 +96,12 @@
   <dialog id="profile-dialog">
     <form method="dialog" id="profile-form">
       <h2>Edit profile</h2>
+      <div class="profile-avatar">
+        <img id="profile-avatar-preview" src="{% if user.avatar_filename %}{{url_for('avatar_file',filename=user.avatar_filename)}}{% else %}{{url_for('static',filename='default-avatar.jpg')}}{% endif %}" alt="profile picture" width="100" height="100">
+        <label for="profile-avatar-input">Change Profile picture</label>
+      </div>
       <label>Display name<input id="profile-name" minlength="3" maxlength="24" required></label>
+      <input type="file" id="profile-avatar-input" accept="image/png,image/jpeg,image/webp">
       <p class="dialog-error" id="profile-error"></p>
       <div class="dialog-actions"><button type="button" data-dialog-cancel class="utility-button">Cancel</button><button id="profile-save" type="button">Save</button></div>
     </form>

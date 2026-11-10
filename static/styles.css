@@ -825,3 +825,106 @@ dialog input,
   0% { transform: translateY(-20px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
+
+.profile-avatar{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+#profile-avatar-preview{
+  width: 112px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #7c5cff;
+  background:#f1f0ff;
+  box-shadow: 0px 4px 18px rgba(124, 92, 255, 0.2);
+  transition: trasnform 0.2 ease, box-shadow 0.2s ease;
+}
+
+
+#profile_avatar_preview:hover{
+  transform: scale(1.04);
+  box-shadow: 0 6px 24px rgba(124, 92, 255, 0.3);
+}
+
+
+#profile-avatar-input{
+  display: none;
+
+}
+
+.profile-avatar label [for="profile-avatar-input"]{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: linear-gradient(135deg,#7c5ff7,#5b43d6);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-avatar label[for="profile-avatar-input"]:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(124, 92, 255, 0.3);
+  color: #20263a;
+}
+
+.profile-avatar label[for="profile-avatar-input"]:active{
+  transform: scale(0.97);
+}
+
+
+#profile-dialog{
+  width: min(420px,calc(100%-32px));
+  padding: 24px;
+  border: 1px solid rgba(124, 92, 255, 0.2);
+  border-radius: 18px;
+  background: #fff;
+  color: #202033;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+#profile-dialog::backdrop{
+  background: rgba(15, 15, 30, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+
+#profile-dialog h2{
+  margin-top: 0;
+  text-align: center;
+}
+
+#profile-dialog .dialog-actions button{
+  border: none;
+  border-radius: 9px;
+  padding: 10px 18px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: filter 0.2s ease,transform 0.2s ease;
+}
+
+
+#profile-dialog .dialog-actions button:hover{
+  filter: brightness(1.08);
+}
+
+#profile-dialog .dialog-actions button:active{
+  transform: scale(0.97);
+}
+
+.user-avatar{
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: middle;
+}
